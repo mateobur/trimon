@@ -49,16 +49,17 @@ def sendAlert(module, body, alertType = 'nonPassed'):
     session.quit()
 
 def checkPing():
-    return subprocess.check_call(['ping', '-c 4', config.get('General', 'target')], stdout=open(os.devnull, 'w')) == 0
+    return subprocess.check_call(['ping', '-c 4', config.get('General', 'target')], stdout=open(os.devnull, 'w')) == 0, "no ping"
 
 def checkPorts():
     portlist = json.loads(config.get('Ports', 'ports_list'))
     for port in portlist:
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(3)
         result = sock.connect_ex((config.get('General', 'target'),port))
         sock.close()
         if result != 0:
-            return False
+            return False, "port " + str(port) + " is closed"
     return True
 
 '''
@@ -99,7 +100,7 @@ def checkMem():
     swapUsed = output[output.index('Swap:') + 2]
     if float(swapUsed) / float(swapTotal) > 0.4:
         return False
-    return True
+    return True, None
 
 def checkMail():
     messageID = idGenerator()
@@ -123,21 +124,22 @@ def checkMail():
     mail = check.listup(1)
     code = re.search('<code>(.*)</code>',mail[0].body).group(1)
     if code == messageID:
-        return True
-    return False
+        return True, None
+    return False, "Email was not correctly received"
 
 
 config = ConfigParser.ConfigParser()
 config.read('trimon.conf')
 
-urls = ["http://noblezabaturra.org"]
 checks = ["Ping", "Ports", "Mail"]
 
 for check in checks:
     if config.getboolean(check, 'enabled'):
         try:
             methodToCall = locals()['check' + check]
-            result = methodToCall()
+            success, reason = methodToCall()
+            if not success:
+                sendAlert(check, reason)
         except Exception, e:
             sendAlert(check, str(e), 'exception')
 
