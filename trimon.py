@@ -127,11 +127,12 @@ def checkMail():
         return True, None
     return False, "Email was not correctly received"
 
-
 config = ConfigParser.ConfigParser()
 config.read('trimon.conf')
 
 checks = ["Ping", "Ports", "Mail"]
+
+all_success = True
 
 for check in checks:
     if config.getboolean(check, 'enabled'):
@@ -139,10 +140,12 @@ for check in checks:
             methodToCall = locals()['check' + check]
             success, reason = methodToCall()
             if not success:
+                all_success = False
                 sendAlert(check, reason)
         except Exception, e:
+            all_success = False
             sendAlert(check, str(e), 'exception')
 
-if config.getboolean('General', 'mail_success'):
+if config.getboolean('General', 'mail_success') and all_success:
     sendAlert('any', 'all tests passed', 'success')
 
