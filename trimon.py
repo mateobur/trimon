@@ -49,7 +49,7 @@ def sendAlert(module, body, alertType = 'nonPassed'):
     session.quit()
 
 def checkPing():
-    return subprocess.check_call(['ping', '-c 4', config.get('General', 'target')]) == 0
+    return subprocess.check_call(['ping', '-c 4', config.get('General', 'target')], stdout=open(os.devnull, 'w')) == 0
 
 def checkPorts():
     portlist = json.loads(config.get('Ports', 'ports_list'))
