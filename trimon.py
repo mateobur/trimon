@@ -131,43 +131,15 @@ config = ConfigParser.ConfigParser()
 config.read('trimon.conf')
 
 urls = ["http://noblezabaturra.org"]
+checks = ["Ping", "Ports", "Mail"]
 
-try:
-    if not checkPing():
-        sendAlert('ping','no reply')
-except Exception, e:
-    sendAlert('ping',str(e),'exception')
-
-try:
-    if not checkPorts():
-        sendAlert('Ports','not open')
-except Exception, e:
-    sendAlert('ports',str(e),'exception')
-
-try:
-    if not checkMail():
-        sendAlert('mail','not received')
-except Exception, e:
-    sendAlert('mail',str(e),'exception')
-'''
-try:
-    if not checkWebs(urls, strings):
-        sendAlert('webs','not present')
-except Exception, e:
-    sendAlert('webs',str(e),'exception')
-'''
-
-try:
-    if not checkServices():
-        sendAlert('service','not running')
-except Exception, e:
-    sendAlert('service',str(e),'exception')
-
-try:
-    if not checkMem():
-        sendAlert('mem','out of mem')
-except Exception, e:
-    sendAlert('mem',str(e),'exception')
+for check in checks:
+    if config.getboolean(check, 'enabled'):
+        try:
+            methodToCall = locals()['check' + check]
+            result = methodToCall()
+        except Exception, e:
+            sendAlert(check, str(e), 'exception')
 
 if config.getboolean('General', 'mail_success'):
     sendAlert('any', 'all tests passed', 'success')
