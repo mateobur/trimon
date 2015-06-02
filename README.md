@@ -1,0 +1,2 @@
+# trimon
+Trivial monitoring script
