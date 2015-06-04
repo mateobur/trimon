@@ -80,11 +80,11 @@ def checkWebs():
                 return False, "String '" + url_check[i] + "' not found in webpage '" + url_check[0] + "'"
     return True, None
 
-def checkUptime():
+def checkLoad():
     output = subprocess.check_output("ssh " + config.get('General', 'ssh_login') + " cat /proc/loadavg", shell=True)
-    if float(output.split()[0]) > 2.0:
-        return False
-    return True
+    if float(output.split()[0]) > config.getfloat("Load", "threshold"):
+        return False, "System load above threshold"
+    return True, None
 
 def checkServices():
     service_list = json.loads(config.get('Services', 'services_list'))
@@ -98,7 +98,7 @@ def checkMem():
     output = subprocess.check_output("ssh " + config.get('General', 'ssh_login') + " free", shell=True).split()
     swapTotal = output[output.index('Swap:') + 1]
     swapUsed = output[output.index('Swap:') + 2]
-    if float(swapUsed) / float(swapTotal) > 0.4:
+    if float(swapUsed) / float(swapTotal) > config.getfloat("Mem", "swap_used_threshold"):
         return False
     return True, None
 
@@ -130,7 +130,7 @@ def checkMail():
 config = ConfigParser.ConfigParser()
 config.read('trimon.conf')
 
-checks = ["Ping", "Ports", "Mail", "Webs"]
+checks = ["Ping", "Ports", "Load", "Mem", "Mail", "Webs"]
 
 all_success = True
 
