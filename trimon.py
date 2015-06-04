@@ -60,25 +60,25 @@ def checkPorts():
         sock.close()
         if result != 0:
             return False, "port " + str(port) + " is closed"
-    return True
+    return True, None
 
-'''
-def checkWebs(urls, strings):
+def checkWebs():
     browser = mechanize.Browser()
     cj = cookielib.LWPCookieJar()
     browser.set_cookiejar(cj)
     browser.set_handle_redirect(True)
     browser.set_handle_robots(False)
     browser.addheaders = [('User-agent', 'Mozilla/5.0 (X11; U; Linux i686; en-US; rv:1.9.0.1) Gecko/2008071615 Fedora/3.0.1-1.fc9 Firefox/3.0.1')]
-    for url in urls:
-        response = browser.open(url)
-    if response.code != 200:
-        return 'Badcode'
-    text = response.read()
-    if 'Estomagando' not in text:
-        return 'NoString'
-    return True
-'''
+    urls = json.loads(config.get('Webs', 'url_check'))
+    for url_check in urls:
+        response = browser.open(url_check[0])
+        if response.code != 200:
+            return False, "HTTP code " + response.code
+        text = response.read()
+        for i in range(1, len(url_check)):
+            if str(url_check[i]) not in text:
+                return False, "String '" + url_check[i] + "' not found in webpage '" + url_check[0] + "'"
+    return True, None
 
 def checkUptime():
     output = subprocess.check_output("ssh " + config.get('General', 'ssh_login') + " cat /proc/loadavg", shell=True)
@@ -130,7 +130,7 @@ def checkMail():
 config = ConfigParser.ConfigParser()
 config.read('trimon.conf')
 
-checks = ["Ping", "Ports", "Mail"]
+checks = ["Ping", "Ports", "Mail", "Webs"]
 
 all_success = True
 
