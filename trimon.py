@@ -83,7 +83,7 @@ def checkWebs():
 def checkLoad():
     output = subprocess.check_output("ssh " + config.get('General', 'ssh_login') + " cat /proc/loadavg", shell=True)
     if float(output.split()[0]) > config.getfloat("Load", "threshold"):
-        return False, "System load above threshold"
+        return False, "System load above threshold: " + output
     return True, None
 
 def checkServices():
