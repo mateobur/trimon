@@ -6,7 +6,6 @@ import string
 import random
 from datetime import datetime
 from email.mime.text import MIMEText
-import easyimap
 import re
 import time
 import os
@@ -16,6 +15,8 @@ import mechanize
 import cookielib
 import subprocess
 import pytz
+import imaplib
+import email
 import ConfigParser
 
 def idGenerator(size=10, chars=string.ascii_uppercase + string.digits + string.ascii_lowercase):
@@ -120,10 +121,20 @@ def checkMail():
     session.sendmail(config.get('Mail', 'sender_addr'), config.get('Mail', 'recipient_addr'), msg.as_string())
     session.quit()
     time.sleep(2)
-    check = easyimap.connect(config.get('Mail', 'recipient_server'), config.get('Mail', 'recipient_addr'), config.get('Mail', 'recipient_pass'))
-    mail = check.listup(1)
-    code = re.search('<code>(.*)</code>',mail[0].body).group(1)
+    M = imaplib.IMAP4_SSL(config.get('Mail', 'recipient_server'))
+    M.login(config.get('Mail', 'recipient_addr'), config.get('Mail', 'recipient_pass'))
+    M.select('INBOX')
+    status, data = M.sort('REVERSE DATE', 'UTF-8', 'ALL')
+    email_id = data[0].split()[0]
+    status, data = M.fetch(email_id, '(RFC822)')
+    msg = email.message_from_string(data[0][1])
+    code = re.search('<code>(.*)</code>',msg.get_payload()).group(1)
     if code == messageID:
+        if (config.getboolean('Mail', 'delete_test_email')):
+            M.store(email_id, '+FLAGS', '\\Deleted')
+            M.expunge()
+            M.close()
+            M.logout()
         return True, None
     return False, "Email was not correctly received"
 
@@ -148,4 +159,3 @@ for check in checks:
 
 if config.getboolean('General', 'mail_success') and all_success:
     sendAlert('any', 'all tests passed', 'success')
-
