@@ -17,6 +17,7 @@ import subprocess
 import pytz
 import imaplib
 import email
+import signal
 import ConfigParser
 
 
@@ -26,6 +27,9 @@ def idGenerator(
         string.digits +
         string.ascii_lowercase):
     return ''.join(random.choice(chars) for _ in range(size))
+
+def handler(signum, frame):
+	raise Exception("Time out exception")
 
 
 def sendAlert(module, body, alertType='nonPassed'):
@@ -201,9 +205,11 @@ config.read('trimon.conf')
 checks = ["Ping", "Ports", "Load", "Mem", "Mail", "Webs"]
 
 all_success = True
+signal.signal(signal.SIGALRM, handler)
 
 for check in checks:
     if config.getboolean(check, 'enabled'):
+	signal.alarm(20)
         try:
             methodToCall = locals()['check' + check]
             success, reason = methodToCall()
@@ -213,6 +219,7 @@ for check in checks:
         except Exception as e:
             all_success = False
             sendAlert(check, str(e), 'exception')
+	signal.alarm(0)
 
 if config.getboolean('General', 'mail_success') and all_success:
     sendAlert('any', 'all tests passed', 'success')
