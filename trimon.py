@@ -221,5 +221,9 @@ for check in checks:
             sendAlert(check, str(e), "exception")
         signal.alarm(0)
 
+if all_success:
+    print "All tests passed successfuly"
+
+
 if config.getboolean("General", "mail_success") and all_success:
     sendAlert("any", "all tests passed", "success")
