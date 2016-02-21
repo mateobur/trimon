@@ -13,6 +13,7 @@ import json
 import mechanize
 import cookielib
 import subprocess
+import traceback
 import pytz
 import imaplib
 import email
@@ -106,44 +107,41 @@ def checkWebs():
     return True, None
 
 
-def checkLoad():
-    output = subprocess.check_output(
-        "ssh " +
+def sysCommand(cmd, sudo=False):
+    sysString = ""
+    if (sudo):
+        sysString += "echo " +\
+            config.get(
+                "General",
+                "ssh_pass") + " | "
+    sysString += "ssh " +\
         config.get(
             "General",
-            "ssh_login") +
-        " cat /proc/loadavg",
-        shell=True)
+            "ssh_login")
+    if (sudo):
+        sysString += " sudo -S"
+    sysString += " " + cmd
+    return subprocess.check_output(sysString, shell=True)
+
+
+def checkLoad():
+    output = sysCommand("cat /proc/loadavg")
     if float(output.split()[0]) > config.getfloat("Load", "threshold"):
         return False, "System load above threshold: " + output
     return True, None
 
 
 def checkServices():
+    output = sysCommand("netstat -wantup | grep LISTEN", True)
     service_list = json.loads(config.get("Services", "services_list"))
     for service in service_list:
-        output = subprocess.check_output(
-            "ssh " +
-            config.get(
-                "General",
-                "ssh_login") +
-            " /etc/init.d/" +
-            service +
-            " status",
-            shell=True)
-        if "running" not in output:
-            return False
-    return True
+        if service not in output:
+            return False, "Service " + service + " is not listening"
+    return True, None
 
 
 def checkMem():
-    output = subprocess.check_output(
-        "ssh " +
-        config.get(
-            "General",
-            "ssh_login") +
-        " free",
-        shell=True).split()
+    output = sysCommand("free").split()
     swapTotal = output[output.index("Swap:") + 1]
     swapUsed = output[output.index("Swap:") + 2]
     if float(swapUsed) / float(swapTotal) > \
@@ -202,7 +200,7 @@ def checkMail():
 config = ConfigParser.ConfigParser()
 config.read("trimon.conf")
 
-checks = ["Ping", "Ports", "Load", "Mem", "Mail", "Webs"]
+checks = ["Ping", "Ports", "Load", "Mem", "Mail", "Services", "Webs"]
 
 all_success = True
 signal.signal(signal.SIGALRM, handler)
@@ -219,11 +217,12 @@ for check in checks:
         except Exception as e:
             all_success = False
             sendAlert(check, str(e), "exception")
+            print traceback.print_exc()
         signal.alarm(0)
 
-if all_success:
-    print "All tests passed successfuly"
 
+if all_success:
+    print "All tests passed successfully"
 
 if config.getboolean("General", "mail_success") and all_success:
     sendAlert("any", "all tests passed", "success")
